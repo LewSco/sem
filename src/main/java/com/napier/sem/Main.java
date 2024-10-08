@@ -91,21 +91,64 @@ public class Main
         {
             // Create an SQL statement
             Statement stmt = con.createStatement();
+
             // Create string for SQL statement
-            String strSelect =
-                    "SELECT emp_no, first_name, last_name "
-                            + "FROM employees "
-                            + "WHERE emp_no = " + ID;
+            String employeeSelect =
+                    "SELECT employees.emp_no, first_name, last_name, title, salary, dept_name, dept_no " +
+                            "FROM employees " +
+                            "JOIN salaries ON salaries.emp_no = employees.emp_no " +
+                            "AND salaries.to_date = " +
+                            "(SELECT MAX(to_date) " +
+                            "FROM salaries " +
+                            "WHERE salaries.emp_no = employees.emp_no)" +
+                            "JOIN titles ON titles.emp_no = employees.emp_no " +
+                            "AND titles.to_date = salaries.to_date " +
+                            "JOIN departments ON departments.dept_no = " +
+                            "(SELECT dept_no " +
+                            "FROM dept_emp " +
+                            "WHERE dept_emp.emp_no = " + ID + " " +
+                            "AND dept_emp.to_date = salaries.to_date) " +
+                            "WHERE employees.emp_no = " + ID;
+
+
+
             // Execute SQL statement
-            ResultSet rset = stmt.executeQuery(strSelect);
+            ResultSet employeeResult = stmt.executeQuery(employeeSelect);
+
+
+
             // Return new employee if valid.
             // Check one is returned
-            if (rset.next())
+            if (employeeResult.next())
             {
                 Employee emp = new Employee();
-                emp.emp_no = rset.getInt("emp_no");
-                emp.first_name = rset.getString("first_name");
-                emp.last_name = rset.getString("last_name");
+                emp.emp_no = employeeResult.getInt("emp_no");
+                emp.first_name = employeeResult.getString("first_name");
+                emp.last_name = employeeResult.getString("last_name");
+                emp.title = employeeResult.getString("title");
+                emp.salary = employeeResult.getInt("salary");
+                emp.dept_name = employeeResult.getString("dept_name");
+
+                // query for getting the managers name
+                String managerSelect =
+                        "SELECT CONCAT(first_name, ' ', last_name) \"name\" " +
+                                "FROM employees " +
+                                "WHERE emp_no = " +
+                                "(SELECT emp_no " +
+                                "FROM dept_manager " +
+                                "WHERE dept_no = '" + employeeResult.getString("dept_no") + "' " +
+                                "AND to_date = " +
+                                "(SELECT MAX(to_date)" +
+                                "FROM dept_manager " +
+                                "WHERE dept_no = '" + employeeResult.getString("dept_no") + "'))";
+
+                ResultSet managerResult = stmt.executeQuery(managerSelect);
+
+                if (managerResult.next())
+                {
+                    emp.manager = managerResult.getString("name");
+                }
+
                 return emp;
             }
             else
